@@ -1,5 +1,6 @@
 # Research Blueprint
 
+[![smithery badge](https://smithery.ai/badge/@SaptaDey/research-blueprint)](https://smithery.ai/server/@SaptaDey/research-blueprint)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![MCP Server](https://img.shields.io/badge/MCP-Server-blue.svg)](https://modelcontextprotocol.io/)
@@ -49,6 +50,14 @@ The Research Blueprint desktop extension provides researchers with a powerful to
 ## Quick Start
 
 ### 🚀 Installation
+
+### Installing via Smithery
+
+To install research-blueprint for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@SaptaDey/research-blueprint):
+
+```bash
+npx -y @smithery/cli install @SaptaDey/research-blueprint --client claude
+```
 
 #### Prerequisites
 - **Node.js** >= 18.0.0 ([Download](https://nodejs.org/))

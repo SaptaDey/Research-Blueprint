@@ -1,4 +1,4 @@
-# Advanced Scientific Reasoning Graph-of-Thoughts (ASR-GoT) MCP Server
+# Research Blueprint
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)

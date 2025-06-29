@@ -8,9 +8,11 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
-    "test": "jest",
+-    "test": "jest",
++    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit"
+  }
   },
   "keywords": ["mcp", "scientific-research", "graph-of-thoughts", "reasoning"],
   "author": "Dr. Saptaswa Dey",

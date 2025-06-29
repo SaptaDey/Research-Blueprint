@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![MCP Server](https://img.shields.io/badge/MCP-Server-blue.svg)](https://modelcontextprotocol.io/)
-[![Research-Blueprint](https://img.shields.io/badge/Framework-ASR--GoT-green.svg)]()
+[![Research-Blueprint](https://img.shields.io/badge/Framework-Research--Blueprint-green.svg)]()
 
 **Research Blueprint**
 
@@ -325,14 +325,14 @@ MIT License - See LICENSE file for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/saptaswa-dey/Research-Blueprint-desktop-extension/issues)
-- **Documentation**: [GitHub Wiki](https://github.com/saptaswa-dey/Research-Blueprint-desktop-extension/wiki)
+- **Issues**: [GitHub Issues](https://github.com/SaptaDey/Research-Blueprint/issues)
+- **Documentation**: [GitHub Wiki](https://github.com/SaptaDey/Research-Blueprint/wiki)
 - **Contact**: Dr. Saptaswa Dey <saptaswa.dey@medunigraz.at>
 
 ## 📊 GitHub Repository Features
 
 - **⭐ Star this repo** if you find it useful!
-- **🐛 Report issues** via [GitHub Issues](https://github.com/saptaswa-dey/Research-Blueprint-desktop-extension/issues)
+- **🐛 Report issues** via [GitHub Issues](https://github.com/SaptaDey/Research-Blueprint/issues)
 - **💡 Request features** through issue templates
 - **🤝 Contribute** following our [Contributing Guidelines](CONTRIBUTING.md)
 
@@ -346,7 +346,7 @@ If you use this extension in your research, please cite:
   title = {Research-Blueprint Desktop Extension: Advanced Scientific Reasoning through Graph-of-Thoughts Framework},
   year = {2024},
   version = {1.0.0},
-  url = {https://github.com/saptaswa-dey/Research-Blueprint-desktop-extension},
+  url = {https://github.com/SaptaDey/Research-Blueprint},
   license = {MIT}
 }
 ```

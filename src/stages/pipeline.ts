@@ -239,15 +239,19 @@ export class ASRGoTPipeline {
     
     let rootNode;
     if (rootNodes.length === 0) {
-      // Create emergency root node if missing
-      const emergencyRootId = this.createBasicRootNode(query.query);
-      result.warnings.push('Created emergency root node for decomposition');
-      const emergencyRoot = this.graph.getNode(emergencyRootId);
-      if (!emergencyRoot) {
-        throw new Error('Failed to create emergency root node');
-      }
-      rootNode = emergencyRoot;
-    } else {
+     if (rootNodes.length === 0) {
+       // Create emergency root node if missing
+       const emergencyRootId = this.createBasicRootNode(query.query);
+       result.nodes_created.push(emergencyRootId);
+       result.warnings.push('Created emergency root node for decomposition');
+       const emergencyRoot = this.graph.getNode(emergencyRootId);
+       if (!emergencyRoot) {
+         throw new Error('Failed to create emergency root node');
+       }
+       rootNode = emergencyRoot;
+     } else {
+       rootNode = rootNodes[0];
+     }
       rootNode = rootNodes[0];
     }
 

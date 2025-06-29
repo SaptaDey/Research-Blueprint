@@ -261,9 +261,17 @@ class ASRGoTMCPServer {
         philosophy: 'Holistic, interdisciplinary, curiosity-driven research'
       };
 
+      // Use timeout from computational budget or default to 5 minutes
+      const timeoutMs = userProfile.computational_timeout_ms ||
+                        context.computational_budget?.max_execution_time_ms ||
+                        300000;
+
       // Execute ASR-GoT pipeline with timeout protection
       const pipelineTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Pipeline execution timeout after 5 minutes')), 300000);
+        setTimeout(
+          () => reject(new Error(`Pipeline execution timeout after ${timeoutMs/1000} seconds`)),
+          timeoutMs
+        );
       });
 
       const pipelineExecution = this.pipeline.executeComplete(query, userProfile);

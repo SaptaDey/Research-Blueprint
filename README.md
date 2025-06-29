@@ -5,7 +5,7 @@
 [![MCP Server](https://img.shields.io/badge/MCP-Server-blue.svg)](https://modelcontextprotocol.io/)
 [![ASR-GoT](https://img.shields.io/badge/Framework-ASR--GoT-green.svg)]()
 
-**Advanced Scientific Reasoning - Graph of Thoughts**
+**Research Blueprint**
 
 A comprehensive desktop extension implementing the ASR-GoT framework for systematic scientific reasoning through an 8-stage graph-based methodology.
 
@@ -13,7 +13,7 @@ A comprehensive desktop extension implementing the ASR-GoT framework for systema
 
 ## Overview
 
-The ASR-GoT (Advanced Scientific Reasoning - Graph of Thoughts) desktop extension provides researchers with a powerful tool for conducting systematic scientific analysis through a structured, graph-based approach. This extension implements the complete ASR-GoT framework as defined in the ASR-GoT.md specification, enabling:
+The Research Blueprint desktop extension provides researchers with a powerful tool for conducting systematic scientific analysis through a structured, graph-based approach. This extension implements the complete ASR-GoT framework as defined in the ASR-GoT.md specification, enabling:
 
 - **Systematic Research Methodology**: 8-stage process from initialization to reflection
 - **Multi-dimensional Confidence Tracking**: Bayesian belief updates with statistical rigor

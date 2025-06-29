@@ -29,20 +29,42 @@ export class BiasDetector {
     const detectedBiases: string[] = [];
 
     try {
-      // Pattern-based detection
+      // Validate input
+      if (!content || typeof content !== 'string') {
+        return ['invalid_input_for_bias_detection'];
+      }
+
+      const safeContent = content.toLowerCase().trim();
+      const safeContext = (context || '').toLowerCase().trim();
+
+      // Pattern-based detection with error handling
       for (const pattern of this.biasPatterns) {
-        if (pattern.test(content)) {
-          detectedBiases.push(this.getPatternBias(pattern));
+        try {
+          if (pattern.test(safeContent)) {
+            detectedBiases.push(this.getPatternBias(pattern));
+          }
+        } catch (patternError) {
+          console.warn('Pattern matching error:', patternError);
         }
       }
 
-      // Context-based detection
-      const contextBiases = this.detectContextualBiases(content, context);
-      detectedBiases.push(...contextBiases);
+      // Context-based detection with error handling
+      try {
+        const contextBiases = this.detectContextualBiases(safeContent, safeContext);
+        detectedBiases.push(...contextBiases);
+      } catch (contextError) {
+        console.warn('Context bias detection error:', contextError);
+        detectedBiases.push('context_analysis_failed');
+      }
 
-      // Domain-specific bias detection
-      const domainBiases = this.detectDomainBiases(content);
-      detectedBiases.push(...domainBiases);
+      // Domain-specific bias detection with error handling
+      try {
+        const domainBiases = this.detectDomainBiases(safeContent);
+        detectedBiases.push(...domainBiases);
+      } catch (domainError) {
+        console.warn('Domain bias detection error:', domainError);
+        detectedBiases.push('domain_analysis_failed');
+      }
 
       return [...new Set(detectedBiases)]; // Remove duplicates
 

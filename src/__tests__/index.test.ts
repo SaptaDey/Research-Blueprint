@@ -487,7 +487,9 @@ describe('Index Module - Main Functionality', () => {
       let eventListeners = [];
       
       const addEventListener = (event: string, callback: Function) => {
+      const addEventListener = (event: string, callback: () => void) => {
         eventListeners.push({ event, callback });
+      };
       };
       
       const removeAllEventListeners = () => {

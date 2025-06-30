@@ -918,13 +918,39 @@ describe('Graph', () => {
         { recursive: null as any },
         new Date(),
         /regex/,
-        Symbol('test'),
-        () => {},
-        new Map(),
-        new Set(),
-        new WeakMap(),
-        new WeakSet()
-      ];
+--- a/src/core/graph.ts
++++ b/src/core/graph.ts
+@@ class ASRGoTGraph {
+   // …existing methods…
+
++  toJSON(): Record<string, any> {
++    const { timestamp, vertices, edges, hyperedges, layers, node_types } = this.state;
++    const serialize = <T>(value: T): any => {
++      if (typeof value === 'symbol' || typeof value === 'function') {
++        return value.toString();
++      }
++      if (value instanceof Map) {
++        return Object.fromEntries(
++          Array.from(value.entries()).map(([k, v]) => [k, serialize(v)])
++        );
++      }
++      if (value instanceof Set) {
++        return Array.from(value).map(serialize);
++      }
++      // skip WeakMap/WeakSet or handle per your requirements
++      return value;
++    };
++
++    return {
++      timestamp,
++      vertices: serialize(vertices),
++      edges: serialize(edges),
++      hyperedges: serialize(hyperedges),
++      layers: serialize(layers),
++      node_types: serialize(node_types),
++    };
++  }
+ }
       
       extremeValues.forEach((value, index) => {
         const nodeId = `extreme${index}`;

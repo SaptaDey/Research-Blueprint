@@ -13,7 +13,7 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit"
   }
-  },
+  }
   "keywords": ["mcp", "scientific-research", "graph-of-thoughts", "reasoning"],
   "author": "Dr. Saptaswa Dey",
   "license": "MIT",

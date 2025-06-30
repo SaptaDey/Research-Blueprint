@@ -141,15 +141,44 @@ class Pipeline {
   }
 
   private async executeStageWithTimeout(stage: PipelineStage, context: PipelineContext) {
-    if (stage.timeout) {
-      return Promise.race([
-        stage.execute(context),
-        new Promise<{ success: false; error: string }>((_, reject) =>
-          setTimeout(() => reject(new Error(`Stage ${stage.name} timed out after ${stage.timeout}ms`)), stage.timeout)
-        )
-      ]);
+    if (!stage.timeout) {
+      return stage.execute(context);
     }
-    return stage.execute(context);
+
+    return new Promise<{ success: boolean; data?: any; error?: string }>((resolve, reject) => {
+      let completed = false;
+      let timeoutId: NodeJS.Timeout | null = null;
+
+      // Set up timeout
+      timeoutId = setTimeout(() => {
+        if (!completed) {
+          completed = true;
+          resolve({ 
+            success: false, 
+            error: `Stage ${stage.name} timed out after ${stage.timeout}ms` 
+          });
+        }
+      }, stage.timeout);
+
+      // Execute stage with proper cleanup
+      stage.execute(context)
+        .then((result) => {
+          if (!completed) {
+            completed = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            resolve(result);
+          }
+          // If completed is true, this result is ignored (no unhandled rejection)
+        })
+        .catch((error) => {
+          if (!completed) {
+            completed = true;
+            if (timeoutId) clearTimeout(timeoutId);
+            reject(error);
+          }
+          // If completed is true, this error is ignored (no unhandled rejection)
+        });
+    });
   }
 }
 

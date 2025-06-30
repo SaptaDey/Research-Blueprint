@@ -287,8 +287,8 @@ describe('ASR-GoT MCP Server - Core Functionality', () => {
       biasedTexts.forEach(text => {
         const detectedBiases = biasDetector.detectBiases(text);
         expect(Array.isArray(detectedBiases)).toBe(true);
-        // Should detect at least some bias indicators
-        expect(detectedBiases.length).toBeGreaterThanOrEqual(0);
+        // Should detect at least one bias indicator for obviously biased text
+        expect(detectedBiases.length).toBeGreaterThan(0);
       });
     });
 

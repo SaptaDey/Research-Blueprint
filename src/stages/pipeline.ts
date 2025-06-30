@@ -239,15 +239,19 @@ export class ASRGoTPipeline {
     
     let rootNode;
     if (rootNodes.length === 0) {
-      // Create emergency root node if missing
-      const emergencyRootId = this.createBasicRootNode(query.query);
-      result.warnings.push('Created emergency root node for decomposition');
-      const emergencyRoot = this.graph.getNode(emergencyRootId);
-      if (!emergencyRoot) {
-        throw new Error('Failed to create emergency root node');
-      }
-      rootNode = emergencyRoot;
-    } else {
+     if (rootNodes.length === 0) {
+       // Create emergency root node if missing
+       const emergencyRootId = this.createBasicRootNode(query.query);
+       result.nodes_created.push(emergencyRootId);
+       result.warnings.push('Created emergency root node for decomposition');
+       const emergencyRoot = this.graph.getNode(emergencyRootId);
+       if (!emergencyRoot) {
+         throw new Error('Failed to create emergency root node');
+       }
+       rootNode = emergencyRoot;
+     } else {
+       rootNode = rootNodes[0];
+     }
       rootNode = rootNodes[0];
     }
 
@@ -297,23 +301,28 @@ export class ASRGoTPipeline {
     const dimensionNodes = Array.from(this.graph.getState().vertices.values())
       .filter(node => node.metadata.type === NodeType.DIMENSION);
 
+    // Initialize dimension nodes from the graph state
+-   const dimensionNodes = Array.from(this.graph.getState().vertices.values())
++   let dimensionNodes = Array.from(this.graph.getState().vertices.values())
+       .filter(node => node.metadata.type === NodeType.DIMENSION);
+
     // Ensure we have at least basic dimensions to work with
     if (dimensionNodes.length === 0) {
       const basicDimIds = this.createBasicDimensions(query.query);
+      result.nodes_created.push(...basicDimIds);
       result.warnings.push(`Created ${basicDimIds.length} basic dimensions for hypothesis generation`);
       // Reload dimension nodes
-      const newDimensionNodes = Array.from(this.graph.getState().vertices.values())
+      dimensionNodes = Array.from(this.graph.getState().vertices.values())
         .filter(node => node.metadata.type === NodeType.DIMENSION);
-      
-      if (newDimensionNodes.length === 0) {
+
+      if (dimensionNodes.length === 0) {
         throw new Error('Failed to create basic dimensions for hypothesis generation');
       }
     }
 
-    const workingDimensions = dimensionNodes.length > 0 ? dimensionNodes : 
-      Array.from(this.graph.getState().vertices.values())
-        .filter(node => node.metadata.type === NodeType.DIMENSION);
-
+    for (const dimNode of dimensionNodes) {
+      // … existing processing on each dimension node …
+    }
     for (const dimNode of workingDimensions) {
       // Generate 3-5 hypotheses per dimension
       const numHypotheses = this.failSafeActive ? 2 : Math.floor(Math.random() * 3) + 3;

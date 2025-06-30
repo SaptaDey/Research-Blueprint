@@ -1,20 +1,20 @@
-# Advanced Scientific Reasoning Graph-of-Thoughts (ASR-GoT) MCP Server
+# Research Blueprint
 
+[![smithery badge](https://smithery.ai/badge/@SaptaDey/research-blueprint)](https://smithery.ai/server/@SaptaDey/research-blueprint)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![MCP Server](https://img.shields.io/badge/MCP-Server-blue.svg)](https://modelcontextprotocol.io/)
-[![ASR-GoT](https://img.shields.io/badge/Framework-ASR--GoT-green.svg)]()
-[![smithery badge](https://smithery.ai/badge/@SaptaDey/scientific-research-claude-extension)](https://smithery.ai/server/@SaptaDey/scientific-research-claude-extension)
+[![Research-Blueprint](https://img.shields.io/badge/Framework-Research--Blueprint-green.svg)]()
 
-**Advanced Scientific Reasoning - Graph of Thoughts**
+**Research Blueprint**
 
-A comprehensive desktop extension implementing the ASR-GoT framework for systematic scientific reasoning through an 8-stage graph-based methodology.
+A comprehensive desktop extension implementing the Research Blueprint framework for systematic scientific reasoning through an 8-stage graph-based methodology.
 
 > 🧬 **Designed for Advanced Scientific Research** - Created specifically for research in immunology, dermatology, and computational biology, but extensible to any scientific domain.
 
 ## Overview
 
-The ASR-GoT (Advanced Scientific Reasoning - Graph of Thoughts) desktop extension provides researchers with a powerful tool for conducting systematic scientific analysis through a structured, graph-based approach. This extension implements the complete ASR-GoT framework as defined in the ASR-GoT.md specification, enabling:
+The Research Blueprint desktop extension provides researchers with a powerful tool for conducting systematic scientific analysis through a structured, graph-based approach. This extension implements the complete Research-Blueprint framework as defined in the Research-Blueprint.md specification, enabling:
 
 - **Systematic Research Methodology**: 8-stage process from initialization to reflection
 - **Multi-dimensional Confidence Tracking**: Bayesian belief updates with statistical rigor
@@ -27,7 +27,7 @@ The ASR-GoT (Advanced Scientific Reasoning - Graph of Thoughts) desktop extensio
 
 ## Architecture
 
-### 8-Stage ASR-GoT Framework
+### 8-Stage Research Blueprint Framework
 
 1. **Initialization**: Create root node with task understanding
 2. **Decomposition**: Break down research task into fundamental dimensions
@@ -51,6 +51,14 @@ The ASR-GoT (Advanced Scientific Reasoning - Graph of Thoughts) desktop extensio
 
 ### 🚀 Installation
 
+### Installing via Smithery
+
+To install research-blueprint for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@SaptaDey/research-blueprint):
+
+```bash
+npx -y @smithery/cli install @SaptaDey/research-blueprint --client claude
+```
+
 #### Prerequisites
 - **Node.js** >= 18.0.0 ([Download](https://nodejs.org/))
 - **Claude Desktop** >= 0.10.0 ([Download](https://claude.ai/desktop))
@@ -60,8 +68,8 @@ The ASR-GoT (Advanced Scientific Reasoning - Graph of Thoughts) desktop extensio
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/saptaswa-dey/asr-got-desktop-extension.git
-   cd asr-got-desktop-extension
+   git clone https://github.com/SaptaDey/Research-Blueprint.git
+   cd Research-Blueprint
    ```
 
 2. **Install Dependencies**
@@ -81,13 +89,13 @@ The ASR-GoT (Advanced Scientific Reasoning - Graph of Thoughts) desktop extensio
    dxt pack .
    
    # Or create zip manually
-   zip -r asr-got-extension.dxt manifest.json server/ -x "server/node_modules/.cache/*"
+   zip -r Research-Blueprint.dxt manifest.json server/ -x "server/node_modules/.cache/*"
    ```
 
 5. **Install in Claude Desktop**
    - Open Claude Desktop
    - Navigate to Extensions
-   - Install from local file: `asr-got-extension.dxt`
+   - Install from local file: `Research-Blueprint.dxt`
    - Configure research domain and preferences
 
 ## Configuration
@@ -116,7 +124,7 @@ The extension supports extensive customization through user configuration:
 1. **Initialize Research Graph**
    ```javascript
    // Initialize new research investigation
-   await claude.tools.initialize_asr_got_graph({
+   await claude.tools.initialize_Research-Blueprint({
      task_description: "Investigate the role of skin microbiome in cutaneous T-cell lymphoma progression",
      initial_confidence: [0.8, 0.7, 0.9, 0.6],
      config: {
@@ -203,7 +211,7 @@ await claude.tools.identify_knowledge_gaps({
 
 ## Tools Reference
 
-### Core ASR-GoT Tools
+### Core Research-Blueprint Tools
 
 | Tool | Description | Stage |
 |------|-------------|-------|
@@ -313,7 +321,7 @@ node --inspect index.js
 
 ## Contributing
 
-This extension follows the ASR-GoT specification. Contributions should:
+This extension follows the Research-Blueprint specification. Contributions should:
 
 1. Maintain compatibility with the 8-stage framework
 2. Include comprehensive test coverage
@@ -326,14 +334,14 @@ MIT License - See LICENSE file for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/saptaswa-dey/asr-got-desktop-extension/issues)
-- **Documentation**: [GitHub Wiki](https://github.com/saptaswa-dey/asr-got-desktop-extension/wiki)
+- **Issues**: [GitHub Issues](https://github.com/SaptaDey/Research-Blueprint/issues)
+- **Documentation**: [GitHub Wiki](https://github.com/SaptaDey/Research-Blueprint/wiki)
 - **Contact**: Dr. Saptaswa Dey <saptaswa.dey@medunigraz.at>
 
 ## 📊 GitHub Repository Features
 
 - **⭐ Star this repo** if you find it useful!
-- **🐛 Report issues** via [GitHub Issues](https://github.com/saptaswa-dey/asr-got-desktop-extension/issues)
+- **🐛 Report issues** via [GitHub Issues](https://github.com/SaptaDey/Research-Blueprint/issues)
 - **💡 Request features** through issue templates
 - **🤝 Contribute** following our [Contributing Guidelines](CONTRIBUTING.md)
 
@@ -344,10 +352,10 @@ If you use this extension in your research, please cite:
 ```bibtex
 @software{dey2024asrgot,
   author = {Dey, Saptaswa},
-  title = {ASR-GoT Desktop Extension: Advanced Scientific Reasoning through Graph-of-Thoughts Framework},
+  title = {Research-Blueprint Desktop Extension: Advanced Scientific Reasoning through Graph-of-Thoughts Framework},
   year = {2024},
   version = {1.0.0},
-  url = {https://github.com/saptaswa-dey/asr-got-desktop-extension},
+  url = {https://github.com/SaptaDey/Research-Blueprint},
   license = {MIT}
 }
 ```

@@ -19,6 +19,25 @@ import {
   EdgeType 
 } from './types/index.js';
 
+// Export main classes and types for testing
+export { ASRGoTGraph } from './core/graph.js';
+export { ASRGoTPipeline } from './stages/pipeline.js';
+export { BiasDetector } from './utils/bias-detector.js';
+export { ASRGoTValidator } from './validation/schema-validator.js';
+export type { 
+  ASRGoTContext, 
+  ResearchQuery, 
+  ASRGoTResponse,
+  NodeMetadata,
+  EdgeMetadata,
+  GraphNode,
+  GraphEdge,
+  StageResult,
+  ASRGoTGraphState,
+  ConfidenceVector
+} from './types/index.js';
+export { NodeType, EdgeType } from './types/index.js';
+
 /**
  * Advanced Scientific Reasoning Graph-of-Thoughts MCP Server
  * Implements the complete ASR-GoT framework with 8-stage pipeline and fail-safe mechanisms

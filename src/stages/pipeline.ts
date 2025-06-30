@@ -301,6 +301,11 @@ export class ASRGoTPipeline {
     const dimensionNodes = Array.from(this.graph.getState().vertices.values())
       .filter(node => node.metadata.type === NodeType.DIMENSION);
 
+    // Initialize dimension nodes from the graph state
+-   const dimensionNodes = Array.from(this.graph.getState().vertices.values())
++   let dimensionNodes = Array.from(this.graph.getState().vertices.values())
+       .filter(node => node.metadata.type === NodeType.DIMENSION);
+
     // Ensure we have at least basic dimensions to work with
     if (dimensionNodes.length === 0) {
       const basicDimIds = this.createBasicDimensions(query.query);

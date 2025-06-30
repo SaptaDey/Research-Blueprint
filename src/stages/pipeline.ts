@@ -101,6 +101,8 @@ export class ASRGoTPipeline {
 
   private async executeStage(stage: number, context: ASRGoTContext, query: ResearchQuery): Promise<StageResult> {
     const startTime = Date.now();
+    const maxRetries = this.failSafeActive ? 1 : 3;
+    let attempt = 0;
     
     const result: StageResult = {
       stage,
@@ -113,52 +115,86 @@ export class ASRGoTPipeline {
       execution_time_ms: 0
     };
 
-    try {
-      switch (stage) {
-        case 1:
-          await this.stage1_Initialization(context, query, result);
-          break;
-        case 2:
-          await this.stage2_Decomposition(context, query, result);
-          break;
-        case 3:
-          await this.stage3_HypothesisPlanning(context, query, result);
-          break;
-        case 4:
-          await this.stage4_EvidenceIntegration(context, query, result);
-          break;
-        case 5:
-          await this.stage5_PruningMerging(context, query, result);
-          break;
-        case 6:
-          await this.stage6_SubgraphExtraction(context, query, result);
-          break;
-        case 7:
-          await this.stage7_Composition(context, query, result);
-          break;
-        case 8:
-          await this.stage8_Reflection(context, query, result);
-          break;
-        default:
-          throw new Error(`Invalid stage: ${stage}`);
-      }
-      
-      result.success = true;
-      
-    } catch (error) {
-      result.errors.push(`Stage ${stage} error: ${(error as Error).message}`);
-      result.success = false;
-      
-      if (this.failSafeActive) {
-        // In fail-safe mode, create minimal viable output
-        await this.createFailSafeOutput(stage, context, result);
-        result.success = true; // Mark as success to continue pipeline
-        result.warnings.push(`Stage ${stage} completed in fail-safe mode`);
+    while (attempt < maxRetries) {
+      try {
+        // Add timeout protection
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(`Stage ${stage} timeout after 30 seconds`)), 30000);
+        });
+
+        const stagePromise = this.executeStageLogic(stage, context, query, result, attempt);
+        await Promise.race([stagePromise, timeoutPromise]);
+        
+        result.success = true;
+        break;
+        
+      } catch (error) {
+        attempt++;
+        const errorMsg = `Stage ${stage} attempt ${attempt} error: ${(error as Error).message}`;
+        result.errors.push(errorMsg);
+        console.warn(errorMsg);
+        
+        // If this is the last attempt or we're in fail-safe mode, create fallback output
+        if (attempt >= maxRetries) {
+          result.success = false;
+          
+          try {
+            // Always attempt to create minimal viable output
+            await this.createFailSafeOutput(stage, context, result);
+            result.success = true; // Mark as success to continue pipeline
+            result.warnings.push(`Stage ${stage} completed with fallback output after ${attempt} attempts`);
+          } catch (fallbackError) {
+            result.errors.push(`Fallback creation failed: ${(fallbackError as Error).message}`);
+            // Even if fallback fails, we continue - just with minimal/empty output
+            result.success = true;
+            result.warnings.push(`Stage ${stage} continued with minimal output due to fallback failure`);
+          }
+        } else {
+          // Wait before retry (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 100));
+        }
       }
     }
     
     result.execution_time_ms = Date.now() - startTime;
     return result;
+  }
+
+  private async executeStageLogic(stage: number, context: ASRGoTContext, query: ResearchQuery, result: StageResult, attempt: number): Promise<void> {
+    // Clear previous attempt's partial results if retrying
+    if (attempt > 0) {
+      result.nodes_created = [];
+      result.edges_created = [];
+    }
+
+    switch (stage) {
+      case 1:
+        await this.stage1_Initialization(context, query, result);
+        break;
+      case 2:
+        await this.stage2_Decomposition(context, query, result);
+        break;
+      case 3:
+        await this.stage3_HypothesisPlanning(context, query, result);
+        break;
+      case 4:
+        await this.stage4_EvidenceIntegration(context, query, result);
+        break;
+      case 5:
+        await this.stage5_PruningMerging(context, query, result);
+        break;
+      case 6:
+        await this.stage6_SubgraphExtraction(context, query, result);
+        break;
+      case 7:
+        await this.stage7_Composition(context, query, result);
+        break;
+      case 8:
+        await this.stage8_Reflection(context, query, result);
+        break;
+      default:
+        throw new Error(`Invalid stage: ${stage}`);
+    }
   }
 
   // Stage 1: Initialization (P1.1)
@@ -201,11 +237,23 @@ export class ASRGoTPipeline {
     const rootNodes = Array.from(this.graph.getState().vertices.values())
       .filter(node => node.metadata.type === NodeType.ROOT);
     
+    let rootNode;
     if (rootNodes.length === 0) {
-      throw new Error('No root node found for decomposition');
+     if (rootNodes.length === 0) {
+       // Create emergency root node if missing
+       const emergencyRootId = this.createBasicRootNode(query.query);
+       result.nodes_created.push(emergencyRootId);
+       result.warnings.push('Created emergency root node for decomposition');
+       const emergencyRoot = this.graph.getNode(emergencyRootId);
+       if (!emergencyRoot) {
+         throw new Error('Failed to create emergency root node');
+       }
+       rootNode = emergencyRoot;
+     } else {
+       rootNode = rootNodes[0];
+     }
+      rootNode = rootNodes[0];
     }
-
-    const rootNode = rootNodes[0];
 
     for (const dimension of dimensions) {
       const dimMetadata: NodeMetadata = {
@@ -253,49 +301,79 @@ export class ASRGoTPipeline {
     const dimensionNodes = Array.from(this.graph.getState().vertices.values())
       .filter(node => node.metadata.type === NodeType.DIMENSION);
 
+    // Initialize dimension nodes from the graph state
+-   const dimensionNodes = Array.from(this.graph.getState().vertices.values())
++   let dimensionNodes = Array.from(this.graph.getState().vertices.values())
+       .filter(node => node.metadata.type === NodeType.DIMENSION);
+
+    // Ensure we have at least basic dimensions to work with
+    if (dimensionNodes.length === 0) {
+      const basicDimIds = this.createBasicDimensions(query.query);
+      result.nodes_created.push(...basicDimIds);
+      result.warnings.push(`Created ${basicDimIds.length} basic dimensions for hypothesis generation`);
+      // Reload dimension nodes
+      dimensionNodes = Array.from(this.graph.getState().vertices.values())
+        .filter(node => node.metadata.type === NodeType.DIMENSION);
+
+      if (dimensionNodes.length === 0) {
+        throw new Error('Failed to create basic dimensions for hypothesis generation');
+      }
+    }
+
     for (const dimNode of dimensionNodes) {
+      // … existing processing on each dimension node …
+    }
+    for (const dimNode of workingDimensions) {
       // Generate 3-5 hypotheses per dimension
       const numHypotheses = this.failSafeActive ? 2 : Math.floor(Math.random() * 3) + 3;
       
       for (let i = 0; i < numHypotheses; i++) {
-        const hypMetadata: NodeMetadata = {
-          node_id: uuidv4(),
-          label: `Hypothesis ${i + 1} for ${dimNode.metadata.label}`,
-          type: NodeType.HYPOTHESIS,
-          timestamp: new Date(),
-          provenance: `Generated for dimension: ${dimNode.metadata.label}`,
-          confidence: {
-            empirical_support: 0.5,
-            theoretical_basis: 0.5,
-            methodological_rigor: 0.5,
-            consensus_alignment: 0.5
-          },
-          epistemic_status: 'hypothetical',
-          disciplinary_tags: dimNode.metadata.disciplinary_tags,
-          falsification_criteria: `Testable via ${this.generateFalsificationCriteria(dimNode.metadata.label)}`,
-          bias_flags: this.biasDetector.detectBiases(dimNode.metadata.label, query.query),
-          revision_history: [{
+        try {
+          const hypMetadata: NodeMetadata = {
+            node_id: uuidv4(),
+            label: `Hypothesis ${i + 1} for ${dimNode.metadata.label}`,
+            type: NodeType.HYPOTHESIS,
             timestamp: new Date(),
-            change: 'Hypothesis generated',
-            author: 'ASR-GoT System'
-          }],
-          impact_score: Math.random() * 0.8 + 0.2,
-          plan: this.generateExecutionPlan(dimNode.metadata.label, query)
-        };
+            provenance: `Generated for dimension: ${dimNode.metadata.label}`,
+            confidence: {
+              empirical_support: 0.5,
+              theoretical_basis: 0.5,
+              methodological_rigor: 0.5,
+              consensus_alignment: 0.5
+            },
+            epistemic_status: 'hypothetical',
+            disciplinary_tags: dimNode.metadata.disciplinary_tags || ['general'],
+            falsification_criteria: `Testable via ${this.generateFalsificationCriteria(dimNode.metadata.label)}`,
+            bias_flags: this.safeDetectBiases(dimNode.metadata.label, query.query),
+            revision_history: [{
+              timestamp: new Date(),
+              change: 'Hypothesis generated',
+              author: 'ASR-GoT System'
+            }],
+            impact_score: Math.random() * 0.8 + 0.2,
+            plan: this.generateExecutionPlan(dimNode.metadata.label, query)
+          };
 
-        const hypId = this.graph.addNode(hypMetadata);
-        result.nodes_created.push(hypId);
+          const hypId = this.graph.addNode(hypMetadata);
+          result.nodes_created.push(hypId);
 
-        // Connect to dimension
-        const edgeMetadata: EdgeMetadata = {
-          edge_id: uuidv4(),
-          edge_type: EdgeType.SUPPORTIVE,
-          confidence: hypMetadata.confidence,
-          timestamp: new Date()
-        };
+          // Connect to dimension with error handling
+          try {
+            const edgeMetadata: EdgeMetadata = {
+              edge_id: uuidv4(),
+              edge_type: EdgeType.SUPPORTIVE,
+              confidence: hypMetadata.confidence,
+              timestamp: new Date()
+            };
 
-        const edgeId = this.graph.addEdge(dimNode.id, hypId, edgeMetadata);
-        result.edges_created.push(edgeId);
+            const edgeId = this.graph.addEdge(dimNode.id, hypId, edgeMetadata);
+            result.edges_created.push(edgeId);
+          } catch (edgeError) {
+            result.warnings.push(`Failed to connect hypothesis ${hypId} to dimension: ${(edgeError as Error).message}`);
+          }
+        } catch (hypError) {
+          result.warnings.push(`Failed to create hypothesis ${i + 1} for ${dimNode.metadata.label}: ${(hypError as Error).message}`);
+        }
       }
     }
   }
@@ -318,27 +396,45 @@ export class ASRGoTPipeline {
       const hypothesis = sortedHypotheses[i];
       
       try {
-        // Simulate evidence gathering and integration
-        const evidenceNodes = await this.gatherEvidence(hypothesis, query, result);
+        // Simulate evidence gathering and integration with error handling
+        let evidenceNodes: any[] = [];
+        try {
+          evidenceNodes = await this.gatherEvidence(hypothesis, query, result);
+        } catch (evidenceError) {
+          result.warnings.push(`Evidence gathering failed for hypothesis ${hypothesis.id}: ${(evidenceError as Error).message}`);
+          evidenceNodes = [];
+        }
         
         // Update hypothesis confidence based on evidence
         for (const evidenceNode of evidenceNodes) {
-          const newConfidence = this.calculateUpdatedConfidence(
-            hypothesis.metadata.confidence,
-            evidenceNode.metadata.confidence
-          );
-          
-          this.graph.updateNodeConfidence(hypothesis.id, newConfidence, {
-            reliability: 0.7,
-            statistical_power: evidenceNode.metadata.statistical_power
-          });
+          try {
+            const newConfidence = this.calculateUpdatedConfidence(
+              hypothesis.metadata.confidence,
+              evidenceNode.metadata.confidence
+            );
+            
+            this.graph.updateNodeConfidence(hypothesis.id, newConfidence, {
+              reliability: 0.7,
+              statistical_power: evidenceNode.metadata.statistical_power
+            });
+          } catch (confError) {
+            result.warnings.push(`Confidence update failed for hypothesis ${hypothesis.id}: ${(confError as Error).message}`);
+          }
         }
 
-        // Check for IBN creation opportunities
-        await this.checkForIBNs(hypothesis, result);
+        // Check for IBN creation opportunities with error handling
+        try {
+          await this.checkForIBNs(hypothesis, result);
+        } catch (ibnError) {
+          result.warnings.push(`IBN check failed for hypothesis ${hypothesis.id}: ${(ibnError as Error).message}`);
+        }
         
-        // Apply temporal dynamics
-        this.applyTemporalDecay(hypothesis);
+        // Apply temporal dynamics with error handling
+        try {
+          this.applyTemporalDecay(hypothesis);
+        } catch (decayError) {
+          result.warnings.push(`Temporal decay failed for hypothesis ${hypothesis.id}: ${(decayError as Error).message}`);
+        }
         
       } catch (error) {
         result.warnings.push(`Evidence integration failed for hypothesis ${hypothesis.id}: ${(error as Error).message}`);
@@ -379,14 +475,40 @@ export class ASRGoTPipeline {
   // Stage 6: Subgraph Extraction (P1.6)
   private async stage6_SubgraphExtraction(context: ASRGoTContext, query: ResearchQuery, result: StageResult): Promise<void> {
     const extractionCriteria = {
-      confidence_threshold: this.failSafeActive ? 0.3 : 0.5,
-      impact_threshold: this.failSafeActive ? 0.2 : 0.4,
+      confidence_threshold: this.failSafeActive ? 0.1 : 0.3,
+      impact_threshold: this.failSafeActive ? 0.05 : 0.2,
       temporal_recency_days: 365,
       node_types: [NodeType.HYPOTHESIS, NodeType.EVIDENCE, NodeType.IBN],
       edge_types: [EdgeType.SUPPORTIVE, EdgeType.CAUSAL, EdgeType.TEMPORAL_PRECEDENCE]
     };
 
-    const subgraph = this.graph.extractSubgraph(extractionCriteria);
+    let subgraph;
+    try {
+      subgraph = this.graph.extractSubgraph(extractionCriteria);
+    } catch (extractError) {
+      result.warnings.push(`Primary subgraph extraction failed: ${(extractError as Error).message}`);
+      
+      // Fallback: extract all available nodes
+      try {
+        const allNodes = Array.from(this.graph.getState().vertices.values());
+        const allEdges = Array.from(this.graph.getState().edges.values());
+        subgraph = { nodes: allNodes, edges: allEdges };
+        result.warnings.push('Used fallback: extracted all available nodes and edges');
+      } catch (fallbackError) {
+        result.warnings.push(`Fallback extraction failed: ${(fallbackError as Error).message}`);
+        // Ultimate fallback: create minimal subgraph
+        subgraph = { nodes: [], edges: [] };
+      }
+    }
+    
+    // Ensure we have some nodes to work with
+    if (subgraph.nodes.length === 0) {
+      const allNodes = Array.from(this.graph.getState().vertices.values());
+      if (allNodes.length > 0) {
+        subgraph = { nodes: allNodes.slice(0, 10), edges: [] };
+        result.warnings.push('Used emergency fallback: selected first 10 available nodes');
+      }
+    }
     
     // Store subgraph in context for composition stage
     (context as any).extracted_subgraph = subgraph;
@@ -397,31 +519,57 @@ export class ASRGoTPipeline {
   // Stage 7: Composition (P1.7)
   private async stage7_Composition(context: ASRGoTContext, query: ResearchQuery, result: StageResult): Promise<void> {
     const subgraph = (context as any).extracted_subgraph;
-    if (!subgraph) {
-      throw new Error('No subgraph available for composition');
+    if (!subgraph || !subgraph.nodes) {
+      result.warnings.push('No subgraph available, creating basic narrative');
+      (context as any).final_narrative = this.generateBasicNarrative(query.query);
+      return;
     }
 
-    // Generate narrative based on extracted subgraph
-    const narrative = this.generateNarrative(subgraph, context, query);
-    (context as any).final_narrative = narrative;
-    
-    result.warnings.push(`Generated narrative with ${narrative.length} characters`);
+    try {
+      // Generate narrative based on extracted subgraph
+      const narrative = this.generateNarrative(subgraph, context, query);
+      (context as any).final_narrative = narrative;
+      
+      result.warnings.push(`Generated narrative with ${narrative.length} characters`);
+    } catch (narrativeError) {
+      result.warnings.push(`Narrative generation failed: ${(narrativeError as Error).message}`);
+      
+      // Fallback to basic narrative
+      try {
+        (context as any).final_narrative = this.generateBasicNarrative(query.query);
+        result.warnings.push('Used fallback basic narrative generation');
+      } catch (basicError) {
+        result.warnings.push(`Basic narrative generation failed: ${(basicError as Error).message}`);
+        (context as any).final_narrative = `Analysis attempted for query: "${query.query}". Partial results may be available through other API endpoints.`;
+      }
+    }
   }
 
   // Stage 8: Reflection (P1.8)
   private async stage8_Reflection(context: ASRGoTContext, query: ResearchQuery, result: StageResult): Promise<void> {
-    const auditResults = await this.performAudit(context, query);
-    (context as any).audit_results = auditResults;
-    
-    if (auditResults.criticalIssues.length > 0) {
-      result.warnings.push(`Audit found ${auditResults.criticalIssues.length} critical issues`);
+    let auditResults;
+    try {
+      auditResults = await this.performAudit(context, query);
+      (context as any).audit_results = auditResults;
+      
+      if (auditResults.criticalIssues.length > 0) {
+        result.warnings.push(`Audit found ${auditResults.criticalIssues.length} critical issues`);
+      }
+    } catch (auditError) {
+      result.warnings.push(`Audit failed: ${(auditError as Error).message}`);
+      (context as any).audit_results = { criticalIssues: [], warnings: ['Audit failed'], quality_score: 0.3 };
     }
     
-    // Final quality check
-    const qualityScore = this.calculateOverallQuality(context);
-    (context as any).quality_score = qualityScore;
-    
-    result.warnings.push(`Overall quality score: ${qualityScore.toFixed(2)}`);
+    // Final quality check with error handling
+    try {
+      const qualityScore = this.calculateOverallQuality(context);
+      (context as any).quality_score = qualityScore;
+      
+      result.warnings.push(`Overall quality score: ${qualityScore.toFixed(2)}`);
+    } catch (qualityError) {
+      result.warnings.push(`Quality calculation failed: ${(qualityError as Error).message}`);
+      (context as any).quality_score = this.failSafeActive ? 0.3 : 0.5;
+    }
   }
 
   // Fail-safe mechanisms
@@ -786,6 +934,16 @@ This analysis operated under computational constraints. For comprehensive result
 
 *Generated by ASR-GoT MCP Server (Fail-Safe Mode)*
     `.trim();
+  }
+
+  // Safe bias detection with error handling
+  private safeDetectBiases(content: string, context: string = ''): string[] {
+    try {
+      return this.biasDetector.detectBiases(content, context);
+    } catch (error) {
+      console.warn('Bias detection failed:', error);
+      return ['bias_detection_unavailable'];
+    }
   }
 
   // Getter methods

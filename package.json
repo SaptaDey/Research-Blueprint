@@ -1,0 +1,40 @@
+{
+  "name": "asr-got-mcp-server",
+  "version": "1.0.0",
+  "description": "Advanced Scientific Reasoning Graph-of-Thoughts MCP Server Extension",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+-    "test": "jest",
++    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit"
+  }
+  }
+  "keywords": ["mcp", "scientific-research", "graph-of-thoughts", "reasoning"],
+  "author": "Dr. Saptaswa Dey",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0",
+    "mathjs": "^12.4.0",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/lodash": "^4.14.202",
+    "@types/uuid": "^9.0.7",
+    "@types/jest": "^29.5.8",
+    "typescript": "^5.3.3",
+    "tsx": "^4.6.2",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.18.1",
+    "@typescript-eslint/parser": "^6.18.1"
+  }
+}

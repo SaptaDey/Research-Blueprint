@@ -19,6 +19,25 @@ import {
   EdgeType 
 } from './types/index.js';
 
+// Export main classes and types for testing
+export { ASRGoTGraph } from './core/graph.js';
+export { ASRGoTPipeline } from './stages/pipeline.js';
+export { BiasDetector } from './utils/bias-detector.js';
+export { ASRGoTValidator } from './validation/schema-validator.js';
+export type { 
+  ASRGoTContext, 
+  ResearchQuery, 
+  ASRGoTResponse,
+  NodeMetadata,
+  EdgeMetadata,
+  GraphNode,
+  GraphEdge,
+  StageResult,
+  ASRGoTGraphState,
+  ConfidenceVector
+} from './types/index.js';
+export { NodeType, EdgeType } from './types/index.js';
+
 /**
  * Advanced Scientific Reasoning Graph-of-Thoughts MCP Server
  * Implements the complete ASR-GoT framework with 8-stage pipeline and fail-safe mechanisms
@@ -232,14 +251,24 @@ class ASRGoTMCPServer {
     });
   }
 
-  private async executeAnalysis(args: any): Promise<{ content: ASRGoTResponse[] }> {
+  private async executeAnalysis(args: any): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+    const startTime = Date.now();
+    let context: ASRGoTContext | null = null;
+    let contextId: string = `context_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
     try {
-      // Validate input
+      // Validate input with better error handling
+      if (!args || !args.query || typeof args.query !== 'string') {
+        throw new Error('Invalid input: query is required and must be a string');
+      }
+
       const query: ResearchQuery = {
-        query: args.query,
-        domain: args.domain || ['general'],
-        complexity_level: args.complexity_level || 'intermediate',
-        expected_depth: args.expected_depth || 'detailed',
+        query: args.query.trim(),
+        domain: Array.isArray(args.domain) ? args.domain : ['general'],
+        complexity_level: ['basic', 'intermediate', 'advanced'].includes(args.complexity_level) 
+          ? args.complexity_level : 'intermediate',
+        expected_depth: ['overview', 'detailed', 'comprehensive'].includes(args.expected_depth)
+          ? args.expected_depth : 'detailed',
         interdisciplinary: args.interdisciplinary !== false
       };
 
@@ -251,242 +280,379 @@ class ASRGoTMCPServer {
         philosophy: 'Holistic, interdisciplinary, curiosity-driven research'
       };
 
-      // Execute ASR-GoT pipeline
-      const context = await this.pipeline.executeComplete(query, userProfile);
+      // Use timeout from computational budget or default to 5 minutes
+      const timeoutMs = userProfile.computational_timeout_ms ||
+                        context.computational_budget?.max_execution_time_ms ||
+                        300000;
+
+      // Execute ASR-GoT pipeline with timeout protection
+      const pipelineTimeout = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error(`Pipeline execution timeout after ${timeoutMs/1000} seconds`)),
+          timeoutMs
+        );
+      });
+
+      const pipelineExecution = this.pipeline.executeComplete(query, userProfile);
+      context = await Promise.race([pipelineExecution, pipelineTimeout]);
       
       // Store context for future reference
-      const contextId = `context_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       this.activeContexts.set(contextId, context);
 
-      // Create response
+      // Create comprehensive response
       const response: ASRGoTResponse = {
         success: true,
         stage: context.current_stage,
         result: {
           context_id: contextId,
-          analysis_summary: this.generateAnalysisSummary(context),
-          final_narrative: (context as any).final_narrative || 'Analysis completed',
-          quality_score: (context as any).quality_score || 0.7,
+          analysis_summary: this.safeGenerateAnalysisSummary(context),
+          final_narrative: (context as any).final_narrative || this.generateFallbackNarrative(query.query),
+          quality_score: (context as any).quality_score || 0.5,
           fail_safe_mode: context.fail_safe_active,
           execution_time_ms: context.stage_results.reduce((total, result) => total + result.execution_time_ms, 0)
         },
         graph_summary: {
-          total_nodes: context.graph_state.vertices.size,
-          total_edges: context.graph_state.edges.size,
-          total_hyperedges: context.graph_state.hyperedges.size,
+          total_nodes: context.graph_state?.vertices?.size || 0,
+          total_edges: context.graph_state?.edges?.size || 0,
+          total_hyperedges: context.graph_state?.hyperedges?.size || 0,
           current_stage: context.current_stage
         },
-        errors: context.stage_results.flatMap(r => r.errors),
-        warnings: context.stage_results.flatMap(r => r.warnings)
+        errors: context.stage_results?.flatMap(r => r.errors) || [],
+        warnings: context.stage_results?.flatMap(r => r.warnings) || []
       };
 
-      return { content: [response] };
+      // Format response according to MCP specification
+      const formattedResponse = {
+        type: 'text' as const,
+        text: JSON.stringify(response, null, 2)
+      };
+      
+      return { content: [formattedResponse] };
 
     } catch (error) {
+      console.error('Analysis execution failed:', error);
+      
+      // Create comprehensive fail-safe response
+      const executionTime = Date.now() - startTime;
       const failSafeResponse: ASRGoTResponse = {
         success: false,
-        stage: 0,
+        stage: context?.current_stage || 0,
         result: {
+          context_id: contextId,
           error: `Analysis failed: ${(error as Error).message}`,
-          fail_safe_activated: true
+          fail_safe_activated: true,
+          analysis_summary: this.generateEmergencyAnalysisSummary(args.query, executionTime),
+          final_narrative: this.generateFallbackNarrative(args.query || 'Unknown query'),
+          quality_score: 0.1,
+          execution_time_ms: executionTime
         },
         graph_summary: {
-          total_nodes: 0,
-          total_edges: 0,
-          total_hyperedges: 0,
-          current_stage: 0
+          total_nodes: context?.graph_state?.vertices?.size || 0,
+          total_edges: context?.graph_state?.edges?.size || 0,
+          total_hyperedges: context?.graph_state?.hyperedges?.size || 0,
+          current_stage: context?.current_stage || 0
         },
-        errors: [(error as Error).message],
-        warnings: ['Analysis failed, minimal output generated']
+        errors: [
+          (error as Error).message,
+          ...(context?.stage_results?.flatMap(r => r.errors) || [])
+        ],
+        warnings: [
+          'Analysis failed, emergency output generated',
+          'Partial results may be available through individual stage inspection',
+          ...(context?.stage_results?.flatMap(r => r.warnings) || [])
+        ]
       };
 
-      return { content: [failSafeResponse] };
-    }
-  }
-
-  private async getAnalysisStatus(args: any): Promise<{ content: any[] }> {
-    const contextId = args.context_id;
-    const context = this.activeContexts.get(contextId);
-
-    if (!context) {
-      throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
-    }
-
-    const status = {
-      context_id: contextId,
-      current_stage: context.current_stage,
-      stages_completed: context.stage_results.filter(r => r.success).length,
-      total_stages: 8,
-      fail_safe_active: context.fail_safe_active,
-      graph_statistics: {
-        nodes: context.graph_state.vertices.size,
-        edges: context.graph_state.edges.size,
-        hyperedges: context.graph_state.hyperedges.size,
-        layers: context.graph_state.layers.size
-      },
-      stage_details: context.stage_results.map(result => ({
-        stage: result.stage,
-        name: result.stage_name,
-        success: result.success,
-        execution_time_ms: result.execution_time_ms,
-        nodes_created: result.nodes_created.length,
-        edges_created: result.edges_created.length,
-        errors: result.errors.length,
-        warnings: result.warnings.length
-      }))
-    };
-
-    return { content: [status] };
-  }
-
-  private async extractSubgraph(args: any): Promise<{ content: any[] }> {
-    const contextId = args.context_id;
-    const context = this.activeContexts.get(contextId);
-
-    if (!context) {
-      throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
-    }
-
-    const criteria = args.criteria || {};
-    const graph = this.pipeline.getGraph();
-    
-    // Convert string node types to enum values
-    if (criteria.node_types) {
-      criteria.node_types = (criteria.node_types as string[]).map((type: string) => {
-        switch (type) {
-          case 'root': return NodeType.ROOT;
-          case 'dimension': return NodeType.DIMENSION;
-          case 'hypothesis': return NodeType.HYPOTHESIS;
-          case 'evidence': return NodeType.EVIDENCE;
-          case 'placeholder_gap': return NodeType.PLACEHOLDER_GAP;
-          case 'interdisciplinary_bridge_node': return NodeType.IBN;
-          default: return NodeType.ROOT;
-        }
-      });
-    }
-
-    // Convert string edge types to enum values  
-    if (criteria.edge_types) {
-      criteria.edge_types = (criteria.edge_types as string[]).map((type: string) => {
-        switch (type) {
-          case 'correlative': return EdgeType.CORRELATIVE;
-          case 'supportive': return EdgeType.SUPPORTIVE;
-          case 'contradictory': return EdgeType.CONTRADICTORY;
-          case 'prerequisite': return EdgeType.PREREQUISITE;
-          case 'causal': return EdgeType.CAUSAL;
-          case 'temporal_precedence': return EdgeType.TEMPORAL_PRECEDENCE;
-          default: return EdgeType.OTHER;
-        }
-      });
-    }
-
-    const subgraph = graph.extractSubgraph(criteria);
-
-    const result = {
-      context_id: contextId,
-      subgraph_summary: {
-        nodes_count: subgraph.nodes.length,
-        edges_count: subgraph.edges.length,
-        extraction_criteria: criteria
-      },
-      nodes: subgraph.nodes.map(node => ({
-        id: node.id,
-        label: node.metadata.label,
-        type: node.metadata.type,
-        confidence: node.metadata.confidence,
-        impact_score: node.metadata.impact_score,
-        disciplinary_tags: node.metadata.disciplinary_tags,
-        created: node.metadata.timestamp
-      })),
-      edges: subgraph.edges.map(edge => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        type: edge.metadata.edge_type,
-        confidence: edge.metadata.confidence,
-        created: edge.metadata.timestamp
-      })),
-      insights: this.generateSubgraphInsights(subgraph)
-    };
-
-    return { content: [result] };
-  }
-
-  private async validateGraphStructure(args: any): Promise<{ content: any[] }> {
-    const contextId = args.context_id;
-    const context = this.activeContexts.get(contextId);
-
-    if (!context) {
-      throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
-    }
-
-    const validationLevel = args.validation_level || 'basic';
-    const graphState = context.graph_state;
-
-    const validationResult = this.validator.validateGraphState(graphState);
-
-    const result = {
-      context_id: contextId,
-      validation_level: validationLevel,
-      is_valid: validationResult.isValid,
-      statistics: validationResult.statistics,
-      errors: validationResult.errors,
-      warnings: validationResult.warnings,
-      recommendations: this.generateValidationRecommendations(validationResult),
-      quality_metrics: {
-        structural_integrity: validationResult.isValid ? 1.0 : 0.5,
-        error_rate: validationResult.errors.length / Math.max(1, validationResult.statistics.total_nodes),
-        warning_rate: validationResult.warnings.length / Math.max(1, validationResult.statistics.total_nodes),
-        connectivity: 1 - (validationResult.statistics.orphaned_nodes / Math.max(1, validationResult.statistics.total_nodes))
+      // Store context even if failed (for debugging)
+      if (context) {
+        this.activeContexts.set(contextId, context);
       }
-    };
 
-    return { content: [result] };
+      // Format fail-safe response according to MCP specification
+      const formattedFailSafeResponse = {
+        type: 'text' as const,
+        text: JSON.stringify(failSafeResponse, null, 2)
+      };
+      
+      return { content: [formattedFailSafeResponse] };
+    }
   }
 
-  private async getResearchInsights(args: any): Promise<{ content: any[] }> {
-    const contextId = args.context_id;
-    const context = this.activeContexts.get(contextId);
+  private async getAnalysisStatus(args: any): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+    try {
+      const contextId = args.context_id;
+      
+      if (!contextId) {
+        throw new McpError(ErrorCode.InvalidRequest, 'context_id is required');
+      }
+      
+      const context = this.activeContexts.get(contextId);
 
-    if (!context) {
-      throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
+      if (!context) {
+        throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
+      }
+
+      const status = {
+        context_id: contextId,
+        current_stage: context.current_stage,
+        stages_completed: context.stage_results.filter(r => r.success).length,
+        total_stages: 8,
+        fail_safe_active: context.fail_safe_active,
+        graph_statistics: {
+          nodes: context.graph_state.vertices.size,
+          edges: context.graph_state.edges.size,
+          hyperedges: context.graph_state.hyperedges.size,
+          layers: context.graph_state.layers.size
+        },
+        stage_details: context.stage_results.map(result => ({
+          stage: result.stage,
+          name: result.stage_name,
+          success: result.success,
+          execution_time_ms: result.execution_time_ms,
+          nodes_created: result.nodes_created.length,
+          edges_created: result.edges_created.length,
+          errors: result.errors.length,
+          warnings: result.warnings.length
+        }))
+      };
+
+      const formattedStatus = {
+        type: 'text' as const,
+        text: JSON.stringify(status, null, 2)
+      };
+      
+      return { content: [formattedStatus] };
+    } catch (error) {
+      const errorResponse = {
+        type: 'text' as const,
+        text: JSON.stringify({
+          error: `Status check failed: ${(error as Error).message}`,
+          context_id: args.context_id || 'unknown',
+          available_contexts: Array.from(this.activeContexts.keys())
+        }, null, 2)
+      };
+      
+      return { content: [errorResponse] };
     }
+  }
 
-    const focusArea = args.focus_area || 'gaps';
-    const graph = this.pipeline.getGraph();
-    const graphState = graph.getState();
+  private async extractSubgraph(args: any): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+    try {
+      const contextId = args.context_id;
+      
+      if (!contextId) {
+        throw new McpError(ErrorCode.InvalidRequest, 'context_id is required');
+      }
+      
+      const context = this.activeContexts.get(contextId);
 
-    let insights: any = {};
+      if (!context) {
+        throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
+      }
 
-    switch (focusArea) {
-      case 'gaps':
-        insights = this.generateGapInsights(graphState);
-        break;
-      case 'interventions':
-        insights = this.generateInterventionInsights(graphState);
-        break;
-      case 'causality':
-        insights = this.generateCausalityInsights(graphState);
-        break;
-      case 'temporal_patterns':
-        insights = this.generateTemporalInsights(graphState);
-        break;
-      case 'interdisciplinary':
-        insights = this.generateInterdisciplinaryInsights(graphState);
-        break;
-      default:
-        insights = { error: `Unknown focus area: ${focusArea}` };
+      const criteria = args.criteria || {};
+      const graph = this.pipeline.getGraph();
+      
+      // Convert string node types to enum values
+      if (criteria.node_types) {
+        criteria.node_types = (criteria.node_types as string[]).map((type: string) => {
+          switch (type) {
+            case 'root': return NodeType.ROOT;
+            case 'dimension': return NodeType.DIMENSION;
+            case 'hypothesis': return NodeType.HYPOTHESIS;
+            case 'evidence': return NodeType.EVIDENCE;
+            case 'placeholder_gap': return NodeType.PLACEHOLDER_GAP;
+            case 'interdisciplinary_bridge_node': return NodeType.IBN;
+            default: return NodeType.ROOT;
+          }
+        });
+      }
+
+      // Convert string edge types to enum values  
+      if (criteria.edge_types) {
+        criteria.edge_types = (criteria.edge_types as string[]).map((type: string) => {
+          switch (type) {
+            case 'correlative': return EdgeType.CORRELATIVE;
+            case 'supportive': return EdgeType.SUPPORTIVE;
+            case 'contradictory': return EdgeType.CONTRADICTORY;
+            case 'prerequisite': return EdgeType.PREREQUISITE;
+            case 'causal': return EdgeType.CAUSAL;
+            case 'temporal_precedence': return EdgeType.TEMPORAL_PRECEDENCE;
+            default: return EdgeType.OTHER;
+          }
+        });
+      }
+
+      const subgraph = graph.extractSubgraph(criteria);
+
+      const result = {
+        context_id: contextId,
+        subgraph_summary: {
+          nodes_count: subgraph.nodes.length,
+          edges_count: subgraph.edges.length,
+          extraction_criteria: criteria
+        },
+        nodes: subgraph.nodes.map(node => ({
+          id: node.id,
+          label: node.metadata.label,
+          type: node.metadata.type,
+          confidence: node.metadata.confidence,
+          impact_score: node.metadata.impact_score,
+          disciplinary_tags: node.metadata.disciplinary_tags,
+          created: node.metadata.timestamp
+        })),
+        edges: subgraph.edges.map(edge => ({
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          type: edge.metadata.edge_type,
+          confidence: edge.metadata.confidence,
+          created: edge.metadata.timestamp
+        })),
+        insights: this.generateSubgraphInsights(subgraph)
+      };
+
+      const formattedResult = {
+        type: 'text' as const,
+        text: JSON.stringify(result, null, 2)
+      };
+      
+      return { content: [formattedResult] };
+    } catch (error) {
+      const errorResponse = {
+        type: 'text' as const,
+        text: JSON.stringify({
+          error: `Subgraph extraction failed: ${(error as Error).message}`,
+          context_id: args.context_id || 'unknown',
+          available_contexts: Array.from(this.activeContexts.keys())
+        }, null, 2)
+      };
+      
+      return { content: [errorResponse] };
     }
+  }
 
-    const result = {
-      context_id: contextId,
-      focus_area: focusArea,
-      insights: insights,
-      generated_at: new Date().toISOString(),
-      quality_score: (context as any).quality_score || 0.7
-    };
+  private async validateGraphStructure(args: any): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+    try {
+      const contextId = args.context_id;
+      
+      if (!contextId) {
+        throw new McpError(ErrorCode.InvalidRequest, 'context_id is required');
+      }
+      
+      const context = this.activeContexts.get(contextId);
 
-    return { content: [result] };
+      if (!context) {
+        throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
+      }
+
+      const validationLevel = args.validation_level || 'basic';
+      const graphState = context.graph_state;
+
+      const validationResult = this.validator.validateGraphState(graphState);
+
+      const result = {
+        context_id: contextId,
+        validation_level: validationLevel,
+        is_valid: validationResult.isValid,
+        statistics: validationResult.statistics,
+        errors: validationResult.errors,
+        warnings: validationResult.warnings,
+        recommendations: this.generateValidationRecommendations(validationResult),
+        quality_metrics: {
+          structural_integrity: validationResult.isValid ? 1.0 : 0.5,
+          error_rate: validationResult.errors.length / Math.max(1, validationResult.statistics.total_nodes),
+          warning_rate: validationResult.warnings.length / Math.max(1, validationResult.statistics.total_nodes),
+          connectivity: 1 - (validationResult.statistics.orphaned_nodes / Math.max(1, validationResult.statistics.total_nodes))
+        }
+      };
+
+      const formattedResult = {
+        type: 'text' as const,
+        text: JSON.stringify(result, null, 2)
+      };
+      
+      return { content: [formattedResult] };
+    } catch (error) {
+      const errorResponse = {
+        type: 'text' as const,
+        text: JSON.stringify({
+          error: `Graph validation failed: ${(error as Error).message}`,
+          context_id: args.context_id || 'unknown',
+          available_contexts: Array.from(this.activeContexts.keys())
+        }, null, 2)
+      };
+      
+      return { content: [errorResponse] };
+    }
+  }
+
+  private async getResearchInsights(args: any): Promise<{ content: Array<{ type: 'text'; text: string }> }> {
+    try {
+      const contextId = args.context_id;
+      
+      if (!contextId) {
+        throw new McpError(ErrorCode.InvalidRequest, 'context_id is required');
+      }
+      
+      const context = this.activeContexts.get(contextId);
+
+      if (!context) {
+        throw new McpError(ErrorCode.InvalidRequest, `Context ${contextId} not found`);
+      }
+
+      const focusArea = args.focus_area || 'gaps';
+      const graph = this.pipeline.getGraph();
+      const graphState = graph.getState();
+
+      let insights: any = {};
+
+      switch (focusArea) {
+        case 'gaps':
+          insights = this.generateGapInsights(graphState);
+          break;
+        case 'interventions':
+          insights = this.generateInterventionInsights(graphState);
+          break;
+        case 'causality':
+          insights = this.generateCausalityInsights(graphState);
+          break;
+        case 'temporal_patterns':
+          insights = this.generateTemporalInsights(graphState);
+          break;
+        case 'interdisciplinary':
+          insights = this.generateInterdisciplinaryInsights(graphState);
+          break;
+        default:
+          insights = { error: `Unknown focus area: ${focusArea}` };
+      }
+
+      const result = {
+        context_id: contextId,
+        focus_area: focusArea,
+        insights: insights,
+        generated_at: new Date().toISOString(),
+        quality_score: (context as any).quality_score || 0.7
+      };
+
+      const formattedResult = {
+        type: 'text' as const,
+        text: JSON.stringify(result, null, 2)
+      };
+      
+      return { content: [formattedResult] };
+    } catch (error) {
+      const errorResponse = {
+        type: 'text' as const,
+        text: JSON.stringify({
+          error: `Research insights generation failed: ${(error as Error).message}`,
+          context_id: args.context_id || 'unknown',
+          available_contexts: Array.from(this.activeContexts.keys())
+        }, null, 2)
+      };
+      
+      return { content: [errorResponse] };
+    }
   }
 
   // Helper methods for generating insights and summaries
@@ -507,6 +673,75 @@ class ASRGoTMCPServer {
       total_execution_time_ms: context.stage_results.reduce((total, result) => total + result.execution_time_ms, 0),
       key_findings: this.extractKeyFindings(context)
     };
+  }
+
+  // Safe version of analysis summary generation
+  private safeGenerateAnalysisSummary(context: ASRGoTContext): any {
+    try {
+      return this.generateAnalysisSummary(context);
+    } catch (error) {
+      console.warn('Analysis summary generation failed:', error);
+      return {
+        query: context.task_query || 'Unknown query',
+        stages_completed: `${context.stage_results?.filter(r => r.success).length || 0}/8`,
+        graph_complexity: {
+          nodes: context.graph_state?.vertices?.size || 0,
+          edges: context.graph_state?.edges?.size || 0,
+          density: 0
+        },
+        fail_safe_activated: context.fail_safe_active || true,
+        total_execution_time_ms: context.stage_results?.reduce((total, result) => total + result.execution_time_ms, 0) || 0,
+        key_findings: ['Analysis summary generation encountered errors']
+      };
+    }
+  }
+
+  // Emergency analysis summary for complete failures
+  private generateEmergencyAnalysisSummary(query: string, executionTime: number): any {
+    return {
+      query: query || 'Unknown query',
+      stages_completed: '0/8',
+      graph_complexity: {
+        nodes: 0,
+        edges: 0,
+        density: 0
+      },
+      fail_safe_activated: true,
+      total_execution_time_ms: executionTime,
+      key_findings: [
+        'Analysis failed during execution',
+        'No substantive results were generated',
+        'System encountered critical errors'
+      ]
+    };
+  }
+
+  // Fallback narrative generator
+  private generateFallbackNarrative(query: string): string {
+    return `
+# Analysis Report
+
+## Query: ${query}
+
+## Status
+This analysis encountered significant challenges during execution. The system attempted to process your query using the ASR-GoT framework but was unable to complete the full analysis pipeline.
+
+## Available Information
+- Query received and validated
+- System attempted processing with fail-safe mechanisms active
+- Partial processing may have occurred in early stages
+
+## Recommendations
+1. Try simplifying the query or reducing complexity level
+2. Ensure the query is well-formed and specific
+3. Check system resources and try again later
+4. Contact support if the issue persists
+
+## Note
+This response was generated by emergency fail-safe mechanisms to ensure you receive some feedback even when the full analysis cannot be completed.
+
+*Generated by ASR-GoT MCP Server (Emergency Mode)*
+    `.trim();
   }
 
   private extractKeyFindings(context: ASRGoTContext): string[] {

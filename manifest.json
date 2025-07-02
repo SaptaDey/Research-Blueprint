@@ -1,9 +1,9 @@
 {
   "dxt_version": "0.1",
-  "name": "scientific-reasoning",
-  "display_name": "Scientific Reasoning - Graph of Thoughts",
-  "version": "1.0.1",
-  "description": "An intensive graph-based framework for scientific reasoning that implements the Advanced Scientific Reasoning Graph-of-Thoughts (ASR-GoT) methodology for complex research analysis and hypothesis generation.",
+  "name": "asr-got-scientific-reasoning",
+  "display_name": "ASR-GoT Scientific Reasoning",
+  "version": "1.0.0",
+  "description": "Advanced Scientific Reasoning Graph-of-Thoughts (ASR-GoT) MCP Server for systematic scientific analysis and hypothesis generation.",
   "long_description": "This extension provides a comprehensive implementation of the ASR-GoT framework, enabling researchers to perform systematic scientific reasoning through an 8-stage graph-based methodology. It supports interdisciplinary research, causal inference, temporal analysis, statistical validation, and collaborative research workflows. Designed specifically for advanced scientific research with features like multi-dimensional confidence tracking, bias detection, knowledge gap identification, and impact estimation.",
   "author": {
     "name": "Dr. Saptaswa Dey",
@@ -33,11 +33,8 @@
   "server": {
     "type": "node",
     "entry_point": "dist/index.js",
-    "mcp_config": {
-      "command": "node",
-      "args": ["${__dirname}/dist/index.js"],
-      "env": {}
-    }
+    "args": ["dist/index.js"],
+    "timeout": 300000
   },
   "tools": [
     {
@@ -83,7 +80,7 @@
       "text": "You are an expert in causal inference using Pearl's causal hierarchy and counterfactual reasoning. Apply do-calculus, identify confounders, assess causal assumptions, and distinguish between association and causation. Focus on directed acyclic graphs (DAGs), intervention design, and causal pathway analysis in biological and medical research contexts."
     }
   ],
-  "user_configuration": {
+  "user_config": {
     "research_domain": {
       "type": "string",
       "title": "Primary Research Domain",

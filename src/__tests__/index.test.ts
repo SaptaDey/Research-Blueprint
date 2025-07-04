@@ -204,7 +204,7 @@ describe('ASR-GoT MCP Server - Core Functionality', () => {
 
     beforeEach(() => {
       graph = new ASRGoTGraph();
-      pipeline = new ASRGoTPipeline(graph);
+      pipeline = new ASRGoTPipeline();
     });
 
     it('should initialize pipeline correctly', () => {
@@ -437,7 +437,7 @@ describe('ASR-GoT MCP Server - Core Functionality', () => {
 
     it('should handle pipeline execution with invalid context', async () => {
       const graph = new ASRGoTGraph();
-      const pipeline = new ASRGoTPipeline(graph);
+      const pipeline = new ASRGoTPipeline();
       
       // Test with null query
       await expect(
@@ -543,7 +543,7 @@ describe('ASR-GoT MCP Server - Core Functionality', () => {
   describe('Integration Tests', () => {
     it('should work end-to-end with real research query', async () => {
       const graph = new ASRGoTGraph();
-      const pipeline = new ASRGoTPipeline(graph);
+      const pipeline = new ASRGoTPipeline();
       
       const query: ResearchQuery = {
         query: 'How does artificial intelligence impact medical diagnosis accuracy?',

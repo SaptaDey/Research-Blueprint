@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Schemas, NodeMetadata, EdgeMetadata, ConfidenceVector } from '../types/index.js';
+import { Schemas, NodeMetadata, EdgeMetadata } from '../types/index.js';
 
 /**
  * Comprehensive validation system for ASR-GoT metadata and structures

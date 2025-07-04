@@ -1,4 +1,4 @@
-import { EdgeType, ConfidenceVector } from '../types/index.js';
+import { EdgeType } from '../types/index.js';
 
 /**
  * Causal Inference System (P1.24)

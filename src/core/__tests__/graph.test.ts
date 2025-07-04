@@ -1,10 +1,11 @@
-import { Graph, GraphNode, GraphEdge } from '../graph';
+import { ASRGoTGraph } from '../graph.js';
+import { GraphNode, GraphEdge } from '../graph.js';
 
-describe('Graph', () => {
-  let graph: Graph;
+describe('ASRGoTGraph', () => {
+  let graph: ASRGoTGraph;
 
   beforeEach(() => {
-    graph = new Graph();
+    graph = new ASRGoTGraph();
   });
 
   describe('Node Management', () => {

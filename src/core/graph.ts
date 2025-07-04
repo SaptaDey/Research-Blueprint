@@ -309,7 +309,7 @@ export class ASRGoTGraph {
     return this.getNodeDegree(nodeId) / this.state.vertices.size;
   }
 
-  private getNeighbors(nodeId: string): string[] {
+  getNeighbors(nodeId: string): string[] {
     const neighbors: string[] = [];
     for (const edge of this.state.edges.values()) {
       if (edge.source === nodeId) {
@@ -405,7 +405,7 @@ export class ASRGoTGraph {
     return mergedId;
   }
 
-  private removeNode(nodeId: string): void {
+  removeNode(nodeId: string): void {
     this.state.vertices.delete(nodeId);
     this.state.node_types.delete(nodeId);
     this.state.confidence_function.delete(nodeId);
@@ -460,6 +460,18 @@ export class ASRGoTGraph {
 
   getHyperedgeCount(): number {
     return this.state.hyperedges.size;
+  }
+
+  isEmpty(): boolean {
+    return this.getNodeCount() === 0 && this.getEdgeCount() === 0;
+  }
+
+  hasNode(nodeId: string): boolean {
+    return this.state.vertices.has(nodeId);
+  }
+
+  hasEdge(edgeId: string): boolean {
+    return this.state.edges.has(edgeId);
   }
 
   // Subgraph extraction (P1.6)
@@ -590,3 +602,6 @@ export class ASRGoTGraph {
     }
   }
 }
+
+// Export types used in tests
+export { GraphNode, GraphEdge };

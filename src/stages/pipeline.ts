@@ -239,19 +239,16 @@ export class ASRGoTPipeline {
     
     let rootNode;
     if (rootNodes.length === 0) {
-     if (rootNodes.length === 0) {
-       // Create emergency root node if missing
-       const emergencyRootId = this.createBasicRootNode(query.query);
-       result.nodes_created.push(emergencyRootId);
-       result.warnings.push('Created emergency root node for decomposition');
-       const emergencyRoot = this.graph.getNode(emergencyRootId);
-       if (!emergencyRoot) {
-         throw new Error('Failed to create emergency root node');
-       }
-       rootNode = emergencyRoot;
-     } else {
-       rootNode = rootNodes[0];
-     }
+      // Create emergency root node if missing
+      const emergencyRootId = this.createBasicRootNode(query.query);
+      result.nodes_created.push(emergencyRootId);
+      result.warnings.push('Created emergency root node for decomposition');
+      const emergencyRoot = this.graph.getNode(emergencyRootId);
+      if (!emergencyRoot) {
+        throw new Error('Failed to create emergency root node');
+      }
+      rootNode = emergencyRoot;
+    } else {
       rootNode = rootNodes[0];
     }
 
@@ -298,13 +295,9 @@ export class ASRGoTPipeline {
 
   // Stage 3: Hypothesis/Planning (P1.3)
   private async stage3_HypothesisPlanning(context: ASRGoTContext, query: ResearchQuery, result: StageResult): Promise<void> {
-    const dimensionNodes = Array.from(this.graph.getState().vertices.values())
-      .filter(node => node.metadata.type === NodeType.DIMENSION);
-
     // Initialize dimension nodes from the graph state
--   const dimensionNodes = Array.from(this.graph.getState().vertices.values())
-+   let dimensionNodes = Array.from(this.graph.getState().vertices.values())
-       .filter(node => node.metadata.type === NodeType.DIMENSION);
+    let dimensionNodes = Array.from(this.graph.getState().vertices.values())
+      .filter(node => node.metadata.type === NodeType.DIMENSION);
 
     // Ensure we have at least basic dimensions to work with
     if (dimensionNodes.length === 0) {
@@ -320,10 +313,8 @@ export class ASRGoTPipeline {
       }
     }
 
+    // Process each dimension node for hypothesis generation
     for (const dimNode of dimensionNodes) {
-      // … existing processing on each dimension node …
-    }
-    for (const dimNode of workingDimensions) {
       // Generate 3-5 hypotheses per dimension
       const numHypotheses = this.failSafeActive ? 2 : Math.floor(Math.random() * 3) + 3;
       
@@ -351,7 +342,7 @@ export class ASRGoTPipeline {
               author: 'ASR-GoT System'
             }],
             impact_score: Math.random() * 0.8 + 0.2,
-            plan: this.generateExecutionPlan(dimNode.metadata.label, query)
+            plan: this.generateExecutionPlan(dimNode.metadata.label)
           };
 
           const hypId = this.graph.addNode(hypMetadata);
@@ -549,7 +540,7 @@ export class ASRGoTPipeline {
   private async stage8_Reflection(context: ASRGoTContext, query: ResearchQuery, result: StageResult): Promise<void> {
     let auditResults;
     try {
-      auditResults = await this.performAudit(context, query);
+      auditResults = await this.performAudit();
       (context as any).audit_results = auditResults;
       
       if (auditResults.criticalIssues.length > 0) {
@@ -582,21 +573,24 @@ export class ASRGoTPipeline {
   private async createFailSafeOutput(stage: number, context: ASRGoTContext, result: StageResult): Promise<void> {
     // Create minimal viable output for failed stage
     switch (stage) {
-      case 1:
+      case 1: {
         // Create basic root node
         const basicRoot = this.createBasicRootNode(context.task_query);
         result.nodes_created.push(basicRoot);
         break;
-      case 2:
+      }
+      case 2: {
         // Create minimal dimension nodes
         const basicDims = this.createBasicDimensions(context.task_query);
         result.nodes_created.push(...basicDims);
         break;
-      case 3:
+      }
+      case 3: {
         // Create basic hypotheses
         const basicHyps = this.createBasicHypotheses();
         result.nodes_created.push(...basicHyps);
         break;
+      }
       case 4:
         // Skip complex evidence integration
         break;
@@ -604,11 +598,12 @@ export class ASRGoTPipeline {
         // Basic pruning only
         this.graph.pruneNodes(0.1, 0.05);
         break;
-      case 6:
+      case 6: {
         // Extract all remaining nodes
         const allNodes = Array.from(this.graph.getState().vertices.values());
         (context as any).extracted_subgraph = { nodes: allNodes, edges: [] };
         break;
+      }
       case 7:
         // Generate basic narrative
         (context as any).final_narrative = this.generateBasicNarrative(context.task_query);
@@ -674,7 +669,7 @@ export class ASRGoTPipeline {
     return criteria[dimension as keyof typeof criteria] || 'empirical testing';
   }
 
-  private generateExecutionPlan(dimension: string, query: ResearchQuery): string {
+  private generateExecutionPlan(dimension: string): string {
     return `Plan for ${dimension}: Literature review → Hypothesis refinement → Experimental design → Data collection → Analysis`;
   }
 
@@ -808,7 +803,7 @@ ${context.fail_safe_active ? 'Analysis completed with fail-safe mechanisms activ
     `.trim();
   }
 
-  private async performAudit(context: ASRGoTContext, query: ResearchQuery): Promise<any> {
+  private async performAudit(): Promise<any> {
     const criticalIssues = [];
     const warnings = [];
     

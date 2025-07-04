@@ -80,7 +80,8 @@ export class BiasDetector {
   private detectContextualBiases(content: string, context: string): string[] {
     const biases: string[] = [];
     const contentLower = content.toLowerCase();
-    const contextLower = context.toLowerCase();
+    // contextLower could be used for future context-aware bias detection
+    context.toLowerCase();
 
     // Sample size bias
     if (contentLower.includes('small sample') || contentLower.includes('n=')) {

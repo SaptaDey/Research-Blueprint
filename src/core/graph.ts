@@ -9,8 +9,7 @@ import {
   NodeType,
   EdgeType,
   ConfidenceVector,
-  TopologyMetrics,
-  InfoMetrics
+  TopologyMetrics
 } from '../types/index.js';
 import { BayesianUpdater } from '../utils/bayesian.js';
 import { InformationTheory } from '../utils/information-theory.js';
@@ -414,7 +413,7 @@ export class ASRGoTGraph {
     this.state.info_metrics.delete(nodeId);
 
     // Remove from layers
-    for (const [layerId, nodeIds] of this.state.layers.entries()) {
+    for (const [, nodeIds] of this.state.layers.entries()) {
       const index = nodeIds.indexOf(nodeId);
       if (index > -1) {
         nodeIds.splice(index, 1);

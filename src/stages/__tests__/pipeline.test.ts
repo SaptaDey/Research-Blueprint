@@ -12,7 +12,6 @@ jest.mock('../utils/logger', () => ({
     debug: jest.fn(),
   },
 }));
-}
 describe('Pipeline', () => {
   let pipeline: Pipeline;
   let mockContext: PipelineContext;

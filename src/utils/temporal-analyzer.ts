@@ -70,7 +70,8 @@ export class TemporalAnalyzer {
     halfLife: number = 365 // days
   ): number {
     const daysSince = (Date.now() - timestamp.getTime()) / (1000 * 60 * 60 * 24);
-    const decayFactor = Math.exp(-Math.log(2) * daysSince / halfLife);
+    const effectiveDecayRate = Math.max(decayRate, 0.01); // Minimum decay rate
+    const decayFactor = Math.exp(-Math.log(2) * daysSince / halfLife * effectiveDecayRate);
     
     return originalConfidence * decayFactor;
   }

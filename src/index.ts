@@ -299,9 +299,7 @@ class ASRGoTMCPServer {
       };
 
       // Use timeout from computational budget or default to 5 minutes
-      const timeoutMs = userProfile.computational_timeout_ms ||
-                        context.computational_budget?.max_execution_time_ms ||
-                        300000;
+      const timeoutMs = userProfile.computational_timeout_ms || 300000;
 
       // Execute ASR-GoT pipeline with timeout protection
       const pipelineTimeout = new Promise<never>((_, reject) => {
